@@ -2,149 +2,143 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <title>Günün Öne Çıkan Haberleri</title>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Mynet Banner</title>
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: white;
-    }
-
-    h2 {
-      padding: 16px;
-      margin: 0;
-    }
-
-    .slider-wrapper {
-      overflow: hidden;
-      position: relative;
-      padding: 0 10px 20px;
-    }
-
-    .slider {
-      display: flex;
-      gap: 14px;
-      transition: transform 0.6s ease;
-    }
-
-    .card {
-      min-width: 240px;
-      background: #111827;
-      border-radius: 12px;
-      text-decoration: none;
-      color: white;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.5);
-      flex-shrink: 0;
-    }
-
-    .card img {
-      width: 100%;
-      height: 150px;
-      object-fit: cover;
-      border-top-left-radius: 12px;
-      border-top-right-radius: 12px;
-    }
-
-    .card h3 {
-      font-size: 14px;
-      padding: 10px;
-      margin: 0;
-      line-height: 1.4;
-    }
-
-    .card:hover {
-      transform: scale(1.05);
-    }
-
-    @media (max-width: 600px) {
-      .card {
-        min-width: 200px;
-      }
-    }
+    body { margin:0; font-family: Arial, sans-serif; background:#0f172a; color:#fff; }
+    h2 { padding:16px; margin:0; }
+    #status { padding: 0 16px 12px; opacity: .85; font-size: 13px; }
+    .slider-wrapper { overflow:hidden; position:relative; padding: 0 10px 20px; }
+    .slider { display:flex; gap:14px; transition: transform .6s ease; will-change: transform; }
+    .card { min-width:240px; background:#111827; border-radius:12px; text-decoration:none; color:#fff;
+            box-shadow:0 6px 16px rgba(0,0,0,.45); flex-shrink:0; overflow:hidden; }
+    .card img { width:100%; height:150px; object-fit:cover; display:block; }
+    .card h3 { font-size:14px; padding:10px; margin:0; line-height:1.4; }
+    .card:hover { transform: scale(1.03); }
+    @media (max-width:600px){ .card{ min-width:200px; } }
   </style>
 </head>
 <body>
+  <h2>Gunun One Cikan Haberleri</h2>
+  <div id="status">Yukleniyor...</div>
 
-<h2>📰 Günün Öne Çıkan Haberleri</h2>
-
-<div class="slider-wrapper">
-  <div id="slider" class="slider"></div>
-</div>
+  <div class="slider-wrapper">
+    <div id="slider" class="slider"></div>
+  </div>
 
 <script>
-  const API_URL = 'https://nilknkbr.app.n8n.cloud/webhook/banner-news'; // 🔴 BURAYI KENDİ URL’İNLE DEĞİŞTİR
+  const API_URL = 'https://nilknkbr.app.n8n.cloud/webhook/banner-news';
   const slider = document.getElementById('slider');
+  const statusEl = document.getElementById('status');
 
   let newsData = [];
   let currentIndex = 0;
-  let slideInterval = null;
+  let slideTimer = null;
 
-  async function fetchNews() {
-    try {
-      const res = await fetch(API_URL);
-      const json = await res.json();
+  function setStatus(t) { statusEl.textContent = t; }
 
-      if (!json.news) return;
-
-      // yeni haberleri ekle (title bazlı)
-      const existingTitles = new Set(newsData.map(n => n.title));
-      const fresh = json.news.filter(n => !existingTitles.has(n.title));
-
-      if (fresh.length > 0) {
-        newsData = [...newsData, ...fresh];
-        render();
-      }
-    } catch (e) {
-      console.error('API alınamadı', e);
-    }
+  function normalizeList(json) {
+    if (Array.isArray(json)) return json;
+    if (Array.isArray(json?.data)) return json.data;
+    if (Array.isArray(json?.news)) return json.news;
+    return [];
   }
 
   function render() {
     slider.innerHTML = '';
-
     newsData.forEach(item => {
       const a = document.createElement('a');
       a.href = item.url;
       a.target = '_blank';
+      a.rel = 'noopener';
       a.className = 'card';
-
       a.innerHTML = `
-        <img src="${item.imageUrl}" />
-        <h3>${item.title}</h3>
+        <img src="${item.imageUrl || ''}" alt="">
+        <h3>${item.title || ''}</h3>
       `;
-
       slider.appendChild(a);
     });
+
+    if (newsData.length > 0) {
+      setStatus('Toplam: ' + newsData.length);
+    }
+  }
+
+  async function fetchNews() {
+    try {
+      setStatus('Veri aliniyor...');
+      const res = await fetch(API_URL, { cache: 'no-store' });
+
+      // 304 gelirse json parse edilemez; cache: no-store ile genelde olmaz ama garanti:
+      if (res.status === 304) {
+        setStatus('Degisiklik yok (304).');
+        return;
+      }
+
+      const json = await res.json();
+      const list = normalizeList(json)
+        .filter(x => x && x.title && x.url && !String(x.url).includes('bit.ly'));
+
+      if (list.length === 0) {
+        setStatus('Liste bos geldi. (JSON formatini kontrol et)');
+        return;
+      }
+
+      // title bazli dedupe
+      const existing = new Set(newsData.map(n => n.title));
+      const fresh = list.filter(n => !existing.has(n.title));
+
+      if (newsData.length === 0) {
+        newsData = list;
+        currentIndex = 0;
+        render();
+        resetTransform();
+      } else if (fresh.length > 0) {
+        newsData = [...newsData, ...fresh];
+        render();
+      } else {
+        setStatus('Degisiklik yok. Toplam: ' + newsData.length);
+      }
+    } catch (e) {
+      console.error(e);
+      setStatus('Hata: API alinamadi (Console’a bak).');
+    }
+  }
+
+  function resetTransform() {
+    slider.style.transform = 'translateX(0px)';
   }
 
   function startAutoSlide() {
-    slideInterval = setInterval(() => {
-      if (newsData.length === 0) return;
-
-      currentIndex++;
-      if (currentIndex >= newsData.length) currentIndex = 0;
+    stopAutoSlide();
+    slideTimer = setInterval(() => {
+      if (!slider.children.length) return;
 
       const cardWidth = slider.children[0].offsetWidth + 14;
+      const maxIndex = Math.max(0, newsData.length - 1);
+
+      currentIndex++;
+      if (currentIndex > maxIndex) currentIndex = 0;
+
       slider.style.transform = `translateX(-${currentIndex * cardWidth}px)`;
     }, 3500);
   }
 
   function stopAutoSlide() {
-    clearInterval(slideInterval);
+    if (slideTimer) clearInterval(slideTimer);
+    slideTimer = null;
   }
 
-  // mouse üstüne gelince durdur
   slider.addEventListener('mouseenter', stopAutoSlide);
   slider.addEventListener('mouseleave', startAutoSlide);
 
-  // ilk yükleme
-  fetchNews().then(startAutoSlide);
-
-  // 🔁 5 dakikada bir otomatik yenile
-  setInterval(fetchNews, 5 * 60 * 1000);
+  // initial
+  (async () => {
+    await fetchNews();
+    startAutoSlide();
+    // auto refresh 5 dk
+    setInterval(fetchNews, 5 * 60 * 1000);
+  })();
 </script>
-
 </body>
 </html>
