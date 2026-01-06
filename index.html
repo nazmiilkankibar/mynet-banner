@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mynet Banner Haberler</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .banner {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+    }
+
+    .card {
+      min-width: 220px;
+      background: #111827;
+      border-radius: 10px;
+      color: white;
+      text-decoration: none;
+      box-shadow: 0 4px 10px rgba(0,0,0,.4);
+    }
+
+    .card img {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
+    }
+
+    .card h3 {
+      font-size: 14px;
+      padding: 10px;
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    .card:hover {
+      transform: scale(1.03);
+      transition: .2s;
+    }
+  </style>
+</head>
+<body>
+
+<h2 style="color:white">📰 Günün Öne Çıkan Haberleri</h2>
+
+<div id="banner" class="banner"></div>
+
+<script>
+  fetch('https://xxxx.app.n8n.cloud/webhook/banner-news')
+    .then(res => res.json())
+    .then(data => {
+      const banner = document.getElementById('banner');
+
+      data.news.forEach(item => {
+        const a = document.createElement('a');
+        a.href = item.url;
+        a.target = '_blank';
+        a.className = 'card';
+
+        a.innerHTML = `
+          <img src="${item.imageUrl}" />
+          <h3>${item.title}</h3>
+        `;
+
+        banner.appendChild(a);
+      });
+    })
+    .catch(err => {
+      console.error('Banner yüklenemedi', err);
+    });
+</script>
+
+</body>
+</html>
