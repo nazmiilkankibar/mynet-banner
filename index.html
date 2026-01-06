@@ -5,25 +5,119 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Mynet Banner</title>
   <style>
-    body { margin:0; font-family: Arial, sans-serif; background:#0f172a; color:#fff; }
-    h2 { padding:16px; margin:0; }
-    #status { padding: 0 16px 12px; opacity: .85; font-size: 13px; }
-    .slider-wrapper { overflow:hidden; position:relative; padding: 0 10px 20px; }
-    .slider { display:flex; gap:14px; transition: transform .6s ease; will-change: transform; }
-    .card { min-width:240px; background:#111827; border-radius:12px; text-decoration:none; color:#fff;
-            box-shadow:0 6px 16px rgba(0,0,0,.45); flex-shrink:0; overflow:hidden; }
-    .card img { width:100%; height:150px; object-fit:cover; display:block; }
-    .card h3 { font-size:14px; padding:10px; margin:0; line-height:1.4; }
-    .card:hover { transform: scale(1.03); }
-    @media (max-width:600px){ .card{ min-width:200px; } }
-  </style>
+  :root{
+    --bg:#0f172a;
+    --card:#111827;
+    --muted:rgba(255,255,255,.75);
+  }
+  body { margin:0; font-family: Arial, sans-serif; background:var(--bg); color:#fff; }
+  header{ padding:16px 16px 6px; }
+  h2 { margin:0; font-size:28px; }
+  #status { margin-top:6px; opacity:.85; font-size:13px; color:var(--muted); }
+
+  .wrap{ padding: 10px 16px 22px; }
+  .grid{
+    display:grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap:14px;
+    align-items:stretch;
+  }
+
+  a{ color:inherit; text-decoration:none; }
+
+  .hero{
+    background:var(--card);
+    border-radius:16px;
+    overflow:hidden;
+    position:relative;
+    min-height:360px;
+    box-shadow:0 10px 24px rgba(0,0,0,.45);
+  }
+  .hero img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+    filter:saturate(1.05);
+  }
+  .hero .overlay{
+    position:absolute;
+    left:0; right:0; bottom:0;
+    padding:18px;
+    background: linear-gradient(transparent, rgba(0,0,0,.75));
+  }
+  .hero .title{
+    font-size:22px;
+    font-weight:700;
+    line-height:1.25;
+    text-shadow: 0 2px 10px rgba(0,0,0,.6);
+  }
+
+  .side{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .mini{
+    display:flex;
+    gap:12px;
+    background:var(--card);
+    border-radius:14px;
+    overflow:hidden;
+    min-height:110px;
+    box-shadow:0 10px 24px rgba(0,0,0,.35);
+  }
+  .mini img{
+    width:140px;
+    height:110px;
+    object-fit:cover;
+    flex:0 0 140px;
+    display:block;
+  }
+  .mini .txt{
+    padding:12px 12px 12px 0;
+    display:flex;
+    align-items:center;
+  }
+  .mini .txt div{
+    font-size:14px;
+    font-weight:700;
+    line-height:1.35;
+  }
+
+  .hint{
+    color:var(--muted);
+    font-size:12px;
+    margin-top:10px;
+  }
+
+  @media (max-width: 900px){
+    .grid{ grid-template-columns: 1fr; }
+    .hero{ min-height:280px; }
+    .mini img{ width:120px; flex-basis:120px; }
+  }
+</style>
+
 </head>
 <body>
-  <h2>Gunun One Cikan Haberleri</h2>
-  <div id="status">Yukleniyor...</div>
+  <header>
+    <h2>Gunun One Cikan Haberleri</h2>
+    <div id="status">Yukleniyor...</div>
+  </header>
 
-  <div class="slider-wrapper">
-    <div id="slider" class="slider"></div>
+  <div class="wrap">
+    <div class="grid">
+      <a id="heroLink" class="hero" href="#" target="_blank" rel="noopener">
+        <img id="heroImg" src="" alt="">
+        <div class="overlay">
+          <div id="heroTitle" class="title"></div>
+        </div>
+      </a>
+
+      <div id="side" class="side"></div>
+    </div>
+
+    <div class="hint">Her 4 saniyede bir ana haber degisir.</div>
   </div>
 
 <script>
@@ -34,6 +128,8 @@
   let newsData = [];
   let currentIndex = 0;
   let slideTimer = null;
+  let rotIndex = 0;
+let rotTimer = null;
 
   function setStatus(t) { statusEl.textContent = t; }
 
@@ -45,24 +141,48 @@
   }
 
   function render() {
-    slider.innerHTML = '';
-    newsData.forEach(item => {
-      const a = document.createElement('a');
-      a.href = item.url;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.className = 'card';
-      a.innerHTML = `
-        <img src="${item.imageUrl || ''}" alt="">
-        <h3>${item.title || ''}</h3>
-      `;
-      slider.appendChild(a);
-    });
+  if (!newsData.length) return;
 
-    if (newsData.length > 0) {
-      setStatus('Toplam: ' + newsData.length);
-    }
+  const hero = newsData[rotIndex % newsData.length];
+  const heroLink = document.getElementById('heroLink');
+  const heroImg = document.getElementById('heroImg');
+  const heroTitle = document.getElementById('heroTitle');
+
+  heroLink.href = hero.url;
+  heroImg.src = hero.imageUrl || '';
+  heroTitle.textContent = hero.title || '';
+
+  const side = document.getElementById('side');
+  side.innerHTML = '';
+
+  // hero disindakilerden 3 tane al
+  const others = newsData.filter((_, i) => i !== (rotIndex % newsData.length)).slice(0, 3);
+
+  for (const item of others) {
+    const a = document.createElement('a');
+    a.className = 'mini';
+    a.href = item.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.innerHTML = `
+      <img src="${item.imageUrl || ''}" alt="">
+      <div class="txt"><div>${item.title || ''}</div></div>
+    `;
+    side.appendChild(a);
   }
+
+  setStatus('Toplam: ' + newsData.length);
+}
+
+
+function startRotation(){
+  if (rotTimer) clearInterval(rotTimer);
+  rotTimer = setInterval(() => {
+    if (!newsData.length) return;
+    rotIndex = (rotIndex + 1) % newsData.length;
+    render();
+  }, 4000);
+}
 
   async function fetchNews() {
     try {
@@ -135,9 +255,9 @@
   // initial
   (async () => {
     await fetchNews();
-    startAutoSlide();
-    // auto refresh 5 dk
-    setInterval(fetchNews, 5 * 60 * 1000);
+render();
+startRotation();
+setInterval(fetchNews, 5 * 60 * 1000);
   })();
 </script>
 </body>
