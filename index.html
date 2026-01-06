@@ -122,14 +122,11 @@
 
 <script>
   const API_URL = 'https://nilknkbr.app.n8n.cloud/webhook/banner-news';
-  const slider = document.getElementById('slider');
   const statusEl = document.getElementById('status');
 
   let newsData = [];
-  let currentIndex = 0;
-  let slideTimer = null;
   let rotIndex = 0;
-let rotTimer = null;
+  let rotTimer = null;
 
   function setStatus(t) { statusEl.textContent = t; }
 
@@ -141,55 +138,54 @@ let rotTimer = null;
   }
 
   function render() {
-  if (!newsData.length) return;
+    if (!newsData.length) return;
 
-  const hero = newsData[rotIndex % newsData.length];
-  const heroLink = document.getElementById('heroLink');
-  const heroImg = document.getElementById('heroImg');
-  const heroTitle = document.getElementById('heroTitle');
+    const hero = newsData[rotIndex % newsData.length];
+    const heroLink = document.getElementById('heroLink');
+    const heroImg = document.getElementById('heroImg');
+    const heroTitle = document.getElementById('heroTitle');
 
-  heroLink.href = hero.url;
-  heroImg.src = hero.imageUrl || '';
-  heroTitle.textContent = hero.title || '';
+    heroLink.href = hero.url;
+    heroImg.src = hero.imageUrl || '';
+    heroTitle.textContent = hero.title || '';
 
-  const side = document.getElementById('side');
-  side.innerHTML = '';
+    const side = document.getElementById('side');
+    side.innerHTML = '';
 
-  // hero disindakilerden 3 tane al
-  const others = newsData.filter((_, i) => i !== (rotIndex % newsData.length)).slice(0, 3);
+    const others = newsData
+      .filter((_, i) => i !== (rotIndex % newsData.length))
+      .slice(0, 3);
 
-  for (const item of others) {
-    const a = document.createElement('a');
-    a.className = 'mini';
-    a.href = item.url;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    a.innerHTML = `
-      <img src="${item.imageUrl || ''}" alt="">
-      <div class="txt"><div>${item.title || ''}</div></div>
-    `;
-    side.appendChild(a);
+    for (const item of others) {
+      const a = document.createElement('a');
+      a.className = 'mini';
+      a.href = item.url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.innerHTML = `
+        <img src="${item.imageUrl || ''}" alt="">
+        <div class="txt"><div>${item.title || ''}</div></div>
+      `;
+      side.appendChild(a);
+    }
+
+    setStatus('Toplam: ' + newsData.length);
   }
 
-  setStatus('Toplam: ' + newsData.length);
-}
-
-
-function startRotation(){
-  if (rotTimer) clearInterval(rotTimer);
-  rotTimer = setInterval(() => {
-    if (!newsData.length) return;
-    rotIndex = (rotIndex + 1) % newsData.length;
-    render();
-  }, 4000);
-}
+  function startRotation(){
+    if (rotTimer) clearInterval(rotTimer);
+    rotTimer = setInterval(() => {
+      if (!newsData.length) return;
+      rotIndex = (rotIndex + 1) % newsData.length;
+      render();
+    }, 4000);
+  }
 
   async function fetchNews() {
     try {
       setStatus('Veri aliniyor...');
       const res = await fetch(API_URL, { cache: 'no-store' });
 
-      // 304 gelirse json parse edilemez; cache: no-store ile genelde olmaz ama garanti:
       if (res.status === 304) {
         setStatus('Degisiklik yok (304).');
         return;
@@ -204,61 +200,33 @@ function startRotation(){
         return;
       }
 
-      // title bazli dedupe
+      // Title bazli dedupe
       const existing = new Set(newsData.map(n => n.title));
       const fresh = list.filter(n => !existing.has(n.title));
 
       if (newsData.length === 0) {
         newsData = list;
-        currentIndex = 0;
+        rotIndex = 0;
         render();
-        resetTransform();
       } else if (fresh.length > 0) {
         newsData = [...newsData, ...fresh];
         render();
       } else {
         setStatus('Degisiklik yok. Toplam: ' + newsData.length);
       }
+
     } catch (e) {
       console.error(e);
       setStatus('Hata: API alinamadi (Console’a bak).');
     }
   }
 
-  function resetTransform() {
-    slider.style.transform = 'translateX(0px)';
-  }
-
-  function startAutoSlide() {
-    stopAutoSlide();
-    slideTimer = setInterval(() => {
-      if (!slider.children.length) return;
-
-      const cardWidth = slider.children[0].offsetWidth + 14;
-      const maxIndex = Math.max(0, newsData.length - 1);
-
-      currentIndex++;
-      if (currentIndex > maxIndex) currentIndex = 0;
-
-      slider.style.transform = `translateX(-${currentIndex * cardWidth}px)`;
-    }, 3500);
-  }
-
-  function stopAutoSlide() {
-    if (slideTimer) clearInterval(slideTimer);
-    slideTimer = null;
-  }
-
-  slider.addEventListener('mouseenter', stopAutoSlide);
-  slider.addEventListener('mouseleave', startAutoSlide);
-
-  // initial
   (async () => {
     await fetchNews();
-render();
-startRotation();
-setInterval(fetchNews, 5 * 60 * 1000);
+    startRotation();
+    setInterval(fetchNews, 5 * 60 * 1000);
   })();
 </script>
+
 </body>
 </html>
