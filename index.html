@@ -54,10 +54,14 @@
   }
 
   .side{
-    display:flex;
-    flex-direction:column;
-    gap:14px;
-  }
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+
+  max-height:360px;     /* hero ile ayni hizaya gelsin */
+  overflow-y:auto;      /* tum haberler burada akar */
+  padding-right:6px;
+}
   .mini{
     display:flex;
     gap:12px;
@@ -137,40 +141,66 @@
     return [];
   }
 
-  function render() {
-    if (!newsData.length) return;
+  function upgradeRosetta(url, w, h) {
+  if (!url) return '';
+  // mynet rosetta thumb: ...-50x50.jpg -> ...-1200x675.jpg
+  return url.replace(/-\d+x\d+\.(jpg|jpeg|png|webp)(\?.*)?$/i, `-${w}x${h}.$1$2`);
+}
 
-    const hero = newsData[rotIndex % newsData.length];
-    const heroLink = document.getElementById('heroLink');
-    const heroImg = document.getElementById('heroImg');
-    const heroTitle = document.getElementById('heroTitle');
+function setSmartImage(imgEl, rawUrl, w, h) {
+  const base = (rawUrl || '').trim();
+  const big = upgradeRosetta(base, w, h);
 
-    heroLink.href = hero.url;
-    heroImg.src = hero.imageUrl || '';
-    heroTitle.textContent = hero.title || '';
+  imgEl.onerror = null;
+  imgEl.src = big;
 
-    const side = document.getElementById('side');
-    side.innerHTML = '';
+  // eger buyuk boy yoksa otomatik thumb’a don
+  imgEl.onerror = () => {
+    imgEl.onerror = null;
+    imgEl.src = base;
+  };
+}
 
-    const others = newsData
-      .filter((_, i) => i !== (rotIndex % newsData.length))
-      .slice(0, 3);
+function render() {
+  if (!newsData.length) return;
 
-    for (const item of others) {
-      const a = document.createElement('a');
-      a.className = 'mini';
-      a.href = item.url;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.innerHTML = `
-        <img src="${item.imageUrl || ''}" alt="">
-        <div class="txt"><div>${item.title || ''}</div></div>
-      `;
-      side.appendChild(a);
-    }
+  const hero = newsData[rotIndex % newsData.length];
 
-    setStatus('Toplam: ' + newsData.length);
+  const heroLink = document.getElementById('heroLink');
+  const heroImg = document.getElementById('heroImg');
+  const heroTitle = document.getElementById('heroTitle');
+
+  heroLink.href = hero.url;
+  heroTitle.textContent = hero.title || '';
+  setSmartImage(heroImg, hero.imageUrl, 1200, 675);
+
+  const side = document.getElementById('side');
+  side.innerHTML = '';
+
+  // HERO disindaki tum haberleri goster
+  const others = newsData.filter((_, i) => i !== (rotIndex % newsData.length));
+
+  for (const item of others) {
+    const a = document.createElement('a');
+    a.className = 'mini';
+    a.href = item.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+
+    const img = document.createElement('img');
+    setSmartImage(img, item.imageUrl, 320, 180);
+
+    const txt = document.createElement('div');
+    txt.className = 'txt';
+    txt.innerHTML = `<div>${item.title || ''}</div>`;
+
+    a.appendChild(img);
+    a.appendChild(txt);
+    side.appendChild(a);
   }
+
+  setStatus('Toplam: ' + newsData.length);
+}
 
   function startRotation(){
     if (rotTimer) clearInterval(rotTimer);
